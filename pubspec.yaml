@@ -38,6 +38,16 @@ dependencies:
   open_file: ^3.3.2
   get: ^4.6.6
   shared_preferences: ^2.2.3
+  firebase_database: ^10.5.7
+  firebase_analytics: ^10.10.7
+  firebase_app_check: ^0.2.2+7
+  firebase_auth: ^4.20.0
+  cloud_functions: ^4.7.6
+  firebase_app_installations: ^0.2.5+7
+  firebase_core: ^2.32.0
+  cloud_firestore: ^4.17.5
+  firebase_crashlytics: ^3.5.7
+  syncfusion_flutter_charts: ^25.2.7
 
 
 dev_dependencies:

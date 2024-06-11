@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "548448981597",
+    "firebase_url": "https://warehouse-app-d3b44-default-rtdb.firebaseio.com",
+    "project_id": "warehouse-app-d3b44",
+    "storage_bucket": "warehouse-app-d3b44.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:548448981597:android:03fd6a6ab84d6e87abb3b4",
+        "android_client_info": {
+          "package_name": "com.ware.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCclZ5SIyREOaRWDpsFs60hzkme5qzUC3E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
