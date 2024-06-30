@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:new_project/views/screens/warehouseId.dart';
-import 'package:new_project/views/screens/signup.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:new_project/views/screens/admin_dashboard.dart'; // Update the path to your admin_dashboard screen
+import 'package:new_project/views/screens/warehouseId.dart'; // Update the path to your warehouseId screen
 
 class SigninScreen extends StatefulWidget {
   const SigninScreen({super.key});
@@ -13,10 +14,14 @@ class SigninScreen extends StatefulWidget {
 
 class _SigninScreenState extends State<SigninScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseReference _databaseReference = FirebaseDatabase.instance.ref().child("users");
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
   final _formKey = GlobalKey<FormState>();
   bool _obscureText = true;
+  bool _isLoading = false;
 
   void _togglePasswordVisibility() {
     setState(() {
@@ -26,15 +31,50 @@ class _SigninScreenState extends State<SigninScreen> {
 
   Future<void> _signin() async {
     if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true; // Show loading animation
+      });
+
       try {
-        await _auth.signInWithEmailAndPassword(
+        UserCredential userCredential = await _auth.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
-        Get.to(() => const WarehouseId());
+
+        String userId = userCredential.user!.uid;
+
+        // Fetch user data from Firebase Database
+        DataSnapshot snapshot = await _databaseReference.child(userId).get();
+
+        if (snapshot.exists) {
+          Map<String, dynamic> userData = Map<String, dynamic>.from(snapshot.value as Map);
+
+          String userType = userData["usertype"];
+          String verificationStatus = userData["verificationstatus"];
+
+          // Navigate based on user type and verification status
+          if (userType == "admin" && verificationStatus == "verified") {
+            Get.to(() => const AdminDashboardScreen()); // Navigate to Admin Dashboard
+          } else if (userType == "notadmin" && verificationStatus == "verified") {
+            Get.to(() => const WarehouseId()); // Navigate to WarehouseId screen
+          } else if (userType == "notadmin" && verificationStatus == "notverified") {
+            Get.snackbar("Error", "You are not verified..",
+                snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+          } else {
+            Get.snackbar("Error", "Unrecognized user .",
+                snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+          }
+        } else {
+          Get.snackbar("Error", "Unrecognized user .",
+              snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+        }
       } on FirebaseAuthException catch (e) {
         Get.snackbar("Error", e.message!,
             snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.red, colorText: Colors.white);
+      } finally {
+        setState(() {
+          _isLoading = false; // Hide loading animation
+        });
       }
     }
   }
@@ -42,199 +82,145 @@ class _SigninScreenState extends State<SigninScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/background.png'),
-            fit: BoxFit.cover,
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(), // Dismiss keyboard on tap outside
+        child: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/background.png'),
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 20),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                    ),
-                    const Center(
-                      child: Column(
-                        children: [
-                          Text(
-                            'Welcome!',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                            ),
+                    const SizedBox(height: 250),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                        ),
+                        const Text(
+                          'Welcome Back',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
                           ),
-                          SizedBox(height: 10),
-                          Text(
-                            'Sign in and get started',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 23,
-                            ),
-                          ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      'Sign in to continue',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 100),
-                const Text(
-                  'Email',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 23,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                TextFormField(
-                  controller: _emailController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty || !value.contains('@')) {
-                      return 'Please enter a valid email';
-                    }
-                    return null;
-                  },
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.green,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(25),
-                      borderSide: BorderSide.none,
-                    ),
-                    hintText: 'Enter your email',
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Password',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 23,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscureText,
-                  validator: (value) {
-                    if (value == null || value.isEmpty || value.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
-                    return null;
-                  },
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.green,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(25),
-                      borderSide: BorderSide.none,
-                    ),
-                    hintText: 'Enter your password',
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureText ? Icons.visibility_off : Icons.visibility,
-                      ),
-                      onPressed: _togglePasswordVisibility,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 30),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _signin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[300],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                    ),
-                    child: const Text(
-                      'Sign in',
+                    const SizedBox(height: 50), // Adjusted height to avoid overlap with keyboard
+                    const Text(
+                      'Email',
                       style: TextStyle(
                         color: Colors.black,
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Center(
-                  child: TextButton(
-                    onPressed: () => Get.to(() => const SignupScreen()),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.black,
-                    ),
-                    child: const Text('Forget password?'),
-                  ),
-                ),
-                const Spacer(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      onPressed: () {},
-                      icon: Image.asset(
-                        'assets/images/g00gle.jpeg',
-                        width: 40,
-                        height: 40,
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _emailController,
+                      validator: (value) {
+                        if (value == null || value.isEmpty || !value.contains('@')) {
+                          return 'Please enter a valid email';
+                        }
+                        return null;
+                      },
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.grey[300],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(25),
+                          borderSide: BorderSide.none,
+                        ),
+                        hintText: 'Enter your email',
                       ),
                     ),
-                    IconButton(
-                      onPressed: () {},
-                      icon: Image.asset(
-                        'assets/images/facebook.jpeg',
-                        width: 40,
-                        height: 40,
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Password',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    IconButton(
-                      onPressed: () {},
-                      icon: Image.asset(
-                        'assets/images/instagram.jpeg',
-                        width: 40,
-                        height: 40,
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscureText,
+                      validator: (value) {
+                        if (value == null || value.isEmpty || value.length < 6) {
+                          return 'Password must be at least 6 characters';
+                        }
+                        return null;
+                      },
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.grey[300],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(25),
+                          borderSide: BorderSide.none,
+                        ),
+                        hintText: 'Enter your password',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureText ? Icons.visibility_off : Icons.visibility,
+                          ),
+                          onPressed: _togglePasswordVisibility,
+                        ),
                       ),
                     ),
-                    IconButton(
-                      onPressed: () {},
-                      icon: Image.asset(
-                        'assets/images/twitter.jpeg',
-                        width: 40,
-                        height: 40,
+                    const SizedBox(height: 30),
+                    _isLoading
+                        ? Center(child: CircularProgressIndicator()) // Show loading animation
+                        : SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _signin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                        ),
+                        child: const Text(
+                          'Sign in',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 20),
                   ],
                 ),
-                const SizedBox(height: 190),
-              ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
-}
-
-void main() {
-  runApp(
-    const MaterialApp(
-      home: SigninScreen(),
-    ),
-  );
 }
